@@ -1,0 +1,350 @@
+[
+    {
+        "timestamp_ist": "2024-06-14 12:57:05",
+        "Exit": 0,
+        "Enter": 0,
+        "Total": 0
+    },
+    {
+        "timestamp_ist": "2024-06-14 12:58:06",
+        "Exit": 1,
+        "Enter": 0,
+        "Total": 1
+    },
+    {
+        "timestamp_ist": "2024-06-14 12:59:06",
+        "Exit": 4,
+        "Enter": 0,
+        "Total": 4
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:00:06",
+        "Exit": 6,
+        "Enter": 0,
+        "Total": 6
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:01:07",
+        "Exit": 6,
+        "Enter": 0,
+        "Total": 6
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:02:07",
+        "Exit": 6,
+        "Enter": 0,
+        "Total": 6
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:03:07",
+        "Exit": 8,
+        "Enter": 0,
+        "Total": 8
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:04:07",
+        "Exit": 8,
+        "Enter": 1,
+        "Total": 9
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:05:07",
+        "Exit": 8,
+        "Enter": 2,
+        "Total": 10
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:06:07",
+        "Exit": 9,
+        "Enter": 2,
+        "Total": 11
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:07:08",
+        "Exit": 12,
+        "Enter": 2,
+        "Total": 14
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:15:12",
+        "Exit": 13,
+        "Enter": 2,
+        "Total": 15
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:16:12",
+        "Exit": 13,
+        "Enter": 2,
+        "Total": 15
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:17:12",
+        "Exit": 14,
+        "Enter": 2,
+        "Total": 16
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:18:12",
+        "Exit": 14,
+        "Enter": 2,
+        "Total": 16
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:19:13",
+        "Exit": 15,
+        "Enter": 2,
+        "Total": 17
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:20:13",
+        "Exit": 15,
+        "Enter": 2,
+        "Total": 17
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:28:45",
+        "Exit": 15,
+        "Enter": 2,
+        "Total": 17
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:29:45",
+        "Exit": 17,
+        "Enter": 2,
+        "Total": 19
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:30:45",
+        "Exit": 17,
+        "Enter": 2,
+        "Total": 19
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:31:45",
+        "Exit": 18,
+        "Enter": 2,
+        "Total": 20
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:32:46",
+        "Exit": 19,
+        "Enter": 2,
+        "Total": 21
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:33:46",
+        "Exit": 19,
+        "Enter": 5,
+        "Total": 24
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:34:46",
+        "Exit": 19,
+        "Enter": 5,
+        "Total": 24
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:35:46",
+        "Exit": 19,
+        "Enter": 5,
+        "Total": 24
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:36:46",
+        "Exit": 19,
+        "Enter": 5,
+        "Total": 24
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:37:46",
+        "Exit": 23,
+        "Enter": 5,
+        "Total": 28
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:38:47",
+        "Exit": 23,
+        "Enter": 5,
+        "Total": 28
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:39:47",
+        "Exit": 23,
+        "Enter": 5,
+        "Total": 28
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:40:47",
+        "Exit": 23,
+        "Enter": 5,
+        "Total": 28
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:41:47",
+        "Exit": 25,
+        "Enter": 5,
+        "Total": 30
+    },
+    {
+        "timestamp_ist": "2024-06-14 13:42:47",
+        "Exit": 25,
+        "Enter": 5,
+        "Total": 30
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:09:45",
+        "Exit": 25,
+        "Enter": 5,
+        "Total": 30
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:10:45",
+        "Exit": 25,
+        "Enter": 5,
+        "Total": 30
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:11:45",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:12:45",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:13:46",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:14:46",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:15:46",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:16:46",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:17:46",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:37:42",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:38:43",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:39:43",
+        "Exit": 27,
+        "Enter": 5,
+        "Total": 32
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:40:43",
+        "Exit": 28,
+        "Enter": 6,
+        "Total": 34
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:41:44",
+        "Exit": 29,
+        "Enter": 6,
+        "Total": 35
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:42:44",
+        "Exit": 29,
+        "Enter": 6,
+        "Total": 35
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:43:44",
+        "Exit": 30,
+        "Enter": 7,
+        "Total": 37
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:44:45",
+        "Exit": 30,
+        "Enter": 8,
+        "Total": 38
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:45:45",
+        "Exit": 33,
+        "Enter": 8,
+        "Total": 41
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:46:45",
+        "Exit": 33,
+        "Enter": 8,
+        "Total": 41
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:47:45",
+        "Exit": 35,
+        "Enter": 8,
+        "Total": 43
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:48:45",
+        "Exit": 36,
+        "Enter": 8,
+        "Total": 44
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:49:46",
+        "Exit": 36,
+        "Enter": 8,
+        "Total": 44
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:50:46",
+        "Exit": 40,
+        "Enter": 8,
+        "Total": 48
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:51:46",
+        "Exit": 44,
+        "Enter": 8,
+        "Total": 52
+    },
+    {
+        "timestamp_ist": "2024-06-14 14:52:47",
+        "Exit": 44,
+        "Enter": 8,
+        "Total": 52
+    },
+    {
+        "timestamp_ist": "2024-06-14 15:29:31",
+        "Exit": 45,
+        "Enter": 8,
+        "Total": 53
+    }
+]
