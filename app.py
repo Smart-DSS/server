@@ -174,6 +174,54 @@ from shapely import wkt
 import matplotlib.pyplot as plt
 from shapely.geometry import box
 from sklearn.neighbors import KernelDensity
+from shapely.geometry import polygon
+
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+
+from sqlalchemy import create_engine
+
+from shapely.ops import nearest_points
+from shapely.geometry import MultiPoint
+from shapely.geometry import box
+from shapely import wkt
+from shapely.geometry import LineString, Point
+
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.widgets import Slider
+import matplotlib
+
+from sklearn.neighbors import KernelDensity
+from sklearn.cluster import DBSCAN
+
+import ipywidgets as widgets
+from ipywidgets import interactive
+from IPython.display import display, clear_output
+
+import time
+
+
+import folium
+from folium.plugins import HeatMap
+
+
+#from shapely.geometry import Point,wkt
+from shapely import wkt
+from shapely.geometry import Point
+from sqlalchemy import create_engine
+import numpy as np
+from esda.getisord import G_Local
+from libpysal.weights import KNN
+from shapely.ops import nearest_points
+from shapely.geometry import MultiPoint
+from sqlalchemy import create_engine
+from shapely import wkt
+import matplotlib.pyplot as plt
+from shapely.geometry import box
+from sklearn.neighbors import KernelDensity
+from shapely.geometry import Polygon
 
 def fetch_people_locations(conn, start_time, end_time, epsg=32643):
     """
@@ -318,10 +366,505 @@ def detect_clustering(people_gdf, time_window, min_cluster_size):
     return hotspot_results, coldspot_results, None  # Adjust None to the third return type as needed
 
 
+def calculate_average_speeds(gdf,speed_unit="km/h"):
+    """
+    Calculates the average and instantaneous speed for each person in the GeoDataFrame.
+    Args:
+        gdf: The GeoDataFrame with points and timestamps.
+    Returns:
+        gdf: The GeoDataFrame with added speed information.
+    """
+    # Ensure the data is sorted by person_id and timestamp
+    gdf = gdf.sort_values(by=['person_id', 'timestamp']).reset_index(drop=True)
+   
+    # Calculate the time difference in seconds
+    gdf['time_diff'] = gdf.groupby('person_id')['timestamp'].diff().dt.total_seconds()
+   
+    # Debug: Check time_diff calculation
+    #print("Time Diff Head:\n", gdf[['person_id', 'timestamp', 'time_diff']].head())
+   
+    # Calculate the distance between consecutive points using apply and shift
+    gdf['distance'] = gdf.groupby('person_id')['geometry'].apply(lambda x: x.distance(x.shift())).reset_index(level=0, drop=True)
+   
+    # Debug: Check distance calculation
+    #print("Distance Head:\n", gdf[['person_id', 'geometry', 'distance']].head())
+   
+    # Calculate cumulative distance and time
+    gdf['cumulative_distance'] = gdf.groupby('person_id')['distance'].cumsum()
+    gdf['cumulative_time'] = gdf.groupby('person_id')['time_diff'].cumsum()
+   
+    # Calculate the average speed (cumulative distance / cumulative time)
+    # Calculate speed in kilo meters per hour
+    if speed_unit=="km/h":
+        gdf['average_speed'] = (gdf['cumulative_distance']*3.6) / (gdf['cumulative_time'])
+    else:
+        gdf['average_speed'] = (gdf['cumulative_distance']) / (gdf['cumulative_time'])
+       
+    # Debug: Check cumulative calculations
+    #print("Cumulative Distance and Time Head:\n", gdf[['person_id', 'cumulative_distance', 'cumulative_time', 'average_speed']].head())
+   
+    # Calculate instantaneous speed (distance / time_diff)
+    if speed_unit=="km/h":
+        gdf['instantaneous_speed'] = (gdf['distance']*3.6) / (gdf['time_diff'])
+    else:
+        gdf['instantaneous_speed'] = (gdf['distance']) / (gdf['time_diff'])
+   
+   
+    # Debug: Check instantaneous speed calculation
+    #print("Instantaneous Speed Head:\n", gdf[['person_id', 'distance', 'time_diff', 'instantaneous_speed']].head())
+   
+    # Drop rows where time_diff or distance is NaN or zero (if necessary)
+    gdf = gdf.dropna(subset=['time_diff', 'distance', 'instantaneous_speed'])
+    gdf = gdf[(gdf['time_diff'] > 0)] # & (gdf['distance'] > 0)]
+   
+    # Debug: Final DataFrame check
+    #print("Average speeds calculated:\n", gdf.head())
+   
+    return gdf
+
+
+
+# Very big code starts here
+
+
+
+
+def detect_running_away_anywhere(people_gdf, speed_threshold, distance_threshold, cluster_eps, min_samples):
+    """
+    Detects if people are suddenly running away from any point on the street in all directions.
+   
+    Args:
+        people_gdf (GeoDataFrame): GeoDataFrame containing people's locations, instantaneous speeds, and timestamps.
+        speed_threshold (float): The minimum speed to consider as "running."
+        distance_threshold (float): The minimum distance to consider as "running away."
+        cluster_eps (float): The maximum distance between two points to be considered in the same cluster (for DBSCAN).
+        min_samples (int): The minimum number of people in a cluster to consider it a potential POI.
+   
+    Returns:
+        bool: True if a running away event is detected, otherwise False.
+        list: List of individuals' geometries who are detected to be running away.
+        Point: The centroid of the event, if detected. Returns None if no event is detected.
+    """
+    results = []
+    event_centroid = None
+   
+    # Filter people who are moving faster than the speed threshold
+    running_people = people_gdf[people_gdf['instantaneous_speed'] > speed_threshold]
+    if running_people.empty:
+        return False, results, event_centroid
+
+    # Extract coordinates for clustering
+    coords = np.array(list(running_people.geometry.apply(lambda geom: (geom.x, geom.y))))
+   
+    # Apply DBSCAN clustering to find clusters of people
+    db = DBSCAN(eps=cluster_eps, min_samples=min_samples).fit(coords)
+    labels = db.labels_
+   
+    # Iterate over each cluster found
+    unique_labels = set(labels)
+    for label in unique_labels:
+        if label == -1:  # -1 is noise in DBSCAN, ignore it
+            continue
+
+        # Extract the cluster
+        cluster = running_people[labels == label]
+        cluster_coords = np.array(list(cluster.geometry.apply(lambda geom: (geom.x, geom.y))))
+       
+        # Calculate centroid of the cluster
+        centroid = Point(cluster_coords.mean(axis=0))
+
+        # Check if people are moving away from the centroid
+        divergence_detected = False
+        directions = []
+       
+        for person in cluster.itertuples():
+            distance_from_centroid = person.geometry.distance(centroid)
+            if distance_from_centroid > distance_threshold:
+                # Calculate the direction of movement relative to the centroid
+                movement_direction = np.arctan2(
+                    person.geometry.y - centroid.y,
+                    person.geometry.x - centroid.x
+                )
+                directions.append(movement_direction)
+       
+        # Check if there is sufficient angular dispersion
+        if len(directions) >= 3:  # Need at least three people moving in different directions to consider dispersion
+            min_direction, max_direction = min(directions), max(directions)
+            if max_direction - min_direction > np.pi / 2:  # Adjust this threshold as needed
+                divergence_detected = True
+       
+        if divergence_detected:
+            results.extend(cluster.geometry)
+            event_centroid = centroid
+   
+    return len(results) > 0, results, event_centroid
+
+
+# Example usage:
+# detected, people_geometries, event_centroid = detect_running_away_anywhere(people_gdf, speed_threshold=5.0, distance_threshold=10.0, cluster_eps=5.0, min_samples=3)
+# if detected:
+#     print("Running away event detected at centroid:", event_centroid)
+#     print("People involved:", people_geometries)
+
+def visualize_running_away_event_with_directions(street_gdf, people_gdf, running_geometries, event_centroid,show_arrow=True):
+    """
+    Visualizes the detected running away event on a map with direction arrows.
+
+    Args:
+        street_gdf (GeoDataFrame): GeoDataFrame containing the street data.
+        people_gdf (GeoDataFrame): GeoDataFrame containing people's locations.
+        running_geometries (list): List of geometries of people detected to be running away.
+        event_centroid (Point): The centroid of the detected running away event.
+    """
+    # Base plot with street
+    fig, ax = plt.subplots(figsize=(12, 8))
+    street_gdf.plot(ax=ax, color='lightgrey', edgecolor='black')
+
+    # Plot all people
+    people_gdf.plot(ax=ax, color='blue', alpha=0.6, markersize=10, label="People")
+
+    # Plot running people with direction arrows
+    if running_geometries:
+        running_gdf = gpd.GeoDataFrame(geometry=running_geometries)
+        #running_gdf.plot(ax=ax, color='red', markersize=50, label="Running People")
+       
+        if show_arrow:
+            for geom in running_geometries:
+                # Calculate direction vector (from event centroid to running person)
+                dx = geom.x - event_centroid.x
+                dy = geom.y - event_centroid.y
+                ax.arrow(event_centroid.x, event_centroid.y, dx, dy, head_width=2, head_length=2, fc='green', ec='green')
+       
+        running_gdf.plot(ax=ax, color='red', markersize=10, label="Running People")
+   
+    # Plot the centroid of the event
+    if event_centroid:
+        gpd.GeoDataFrame(geometry=[event_centroid]).plot(ax=ax, color='yellow', markersize=100, label="Event Centroid", marker='x')
+
+    # Add legend
+    plt.legend()
+
+    # Add titles and labels
+    plt.title('Visualization of Running Away Event with Directions')
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
+
+    # Show plot
+    plt.show()
+
+# Example usage:
+# street_gdf = gpd.read_file(street_shapefile_path)
+# visualize_running_away_event_with_directions(street_gdf, people_gdf, running_geometries, event_centroid)
+
+def calculate_directions(gdf):
+    """
+    Calculates the direction (bearing) between consecutive points for each person.
+    Returns a GeoDataFrame with an additional 'direction' column.
+    """
+    # Calculate direction (bearing) between consecutive points
+    gdf['direction'] = np.degrees(np.arctan2(
+        gdf['geometry'].y.diff(),
+        gdf['geometry'].x.diff()
+    ))
+   
+    # Fill NaN values with the previous direction (for continuity)
+    gdf['direction'] = gdf['direction'].ffill()
+   
+    return gdf
+
+import geopandas as gpd
+import numpy as np
+from shapely.geometry import Polygon
+
+def generate_grid_for_street(street_gdf, grid_size=10):
+    """
+    Generates a grid covering the extent of the street shapefile.
+   
+    Args:
+        street_gdf (GeoDataFrame): GeoDataFrame containing the street geometry.
+        grid_size (float): Size of the grid squares (in the same units as the street shapefile's CRS).
+       
+    Returns:
+        grid_gdf (GeoDataFrame): GeoDataFrame containing the grid of polygons.
+    """
+    # Calculate the bounding box of the street shapefile
+    minx, miny, maxx, maxy = street_gdf.total_bounds
+   
+    # Generate the grid squares
+    x_range = np.arange(minx, maxx, grid_size)
+    y_range = np.arange(miny, maxy, grid_size)
+   
+    # Create the grid polygons
+    polygons = []
+    for x in x_range:
+        for y in y_range:
+            polygons.append(Polygon([
+                (x, y),
+                (x + grid_size, y),
+                (x + grid_size, y + grid_size),
+                (x, y + grid_size)
+            ]))
+   
+    # Convert the list of polygons into a GeoDataFrame
+    grid_gdf = gpd.GeoDataFrame({'geometry': polygons}, crs=street_gdf.crs)
+   
+    # Optional: Clip the grid to the street shapefile extent (if needed)
+    grid_gdf = gpd.clip(grid_gdf, street_gdf)
+   
+    return grid_gdf
+
+
+
+def calculate_density(gdf, grid):
+    # Spatial join between the points and the grid
+    joined = gpd.sjoin(grid, gdf, how='left', predicate='contains')
+   
+    # Count the number of points in each grid cell
+    density = joined.groupby(joined.index).size()
+   
+    # Assign the density counts back to the grid
+    grid['density'] = density
+   
+    # Fill NaN values with 0 (for grid cells with no points)
+    grid['density'] = grid['density'].fillna(0)
+   
+    return grid
+
+
+
+# def plot_density_grid(gdf, street_shapefile, cell_size=10,):
+def plot_density_grid(people_gdf, street_shapefile, cell_size=10,):
+
+    grid = generate_grid_for_street(street_shapefile, grid_size=3)
+    density_grid = calculate_density(people_gdf, grid)  # Calculate density
+   
+    # Plot the density map
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+   
+    # Overlay the shapefile
+    street_shapefile.boundary.plot(ax=ax, color='blue', linewidth=1.5)
+   
+    grid.plot(column='density', ax=ax, legend=True,
+              cmap='OrRd', edgecolor='k', linewidth=0.2)
+    ax.set_title('Crowd Density Map')
+    plt.show()
+
+
+
+def kde_density_map(gdf, street_gdf, bandwidth=50, grid_size=100):
+    """
+    Generates a KDE density map that covers the extent of the street polygon.
+
+    Args:
+        gdf (GeoDataFrame): GeoDataFrame containing the points of interest.
+        street_gdf (GeoDataFrame): GeoDataFrame containing the street geometry.
+        bandwidth (float): Bandwidth for KDE.
+        grid_size (int): Number of grid points along each axis.
+
+    Returns:
+        x_mesh (array): Meshgrid X-coordinates.
+        y_mesh (array): Meshgrid Y-coordinates.
+        z_masked (array): Masked KDE density values.
+    """
+    # Extract coordinates from GeoDataFrame
+    coords = np.vstack([gdf.geometry.x, gdf.geometry.y]).T
+   
+    # Perform KDE
+    kde = KernelDensity(bandwidth=bandwidth, metric='euclidean', kernel='gaussian')
+    kde.fit(coords)
+   
+    # Create grid covering the bounding box of the street geometry
+    min_x, min_y, max_x, max_y = street_gdf.total_bounds
+    x_grid = np.linspace(min_x, max_x, grid_size)
+    y_grid = np.linspace(min_y, max_y, grid_size)
+    x_mesh, y_mesh = np.meshgrid(x_grid, y_grid)
+   
+    # Evaluate KDE on grid
+    grid_coords = np.vstack([x_mesh.ravel(), y_mesh.ravel()]).T
+    z = np.exp(kde.score_samples(grid_coords)).reshape(x_mesh.shape)
+   
+    # Create a mask for the grid based on the street polygon
+    street_polygon = street_gdf.union_all()
+    mask = np.array([Point(x, y).within(street_polygon) for x, y in grid_coords]).reshape(x_mesh.shape)
+   
+    # Apply the mask to the KDE result
+    z_masked = np.ma.masked_where(~mask, z)
+   
+    return x_mesh, y_mesh, z_masked
+
+# Example usage
+# street_gdf = gpd.read_file('path_to_your_street_shapefile.shp')
+# points_gdf = gpd.read_file('path_to_your_points_shapefile.shp')
+
+# x_mesh, y_mesh, z_masked = kde_density_map(points_gdf, street_gdf)
+
+# Plotting the result
+# plt.imshow(z_masked, extent=(x_mesh.min(), x_mesh.max(), y_mesh.min(), y_mesh.max()), origin='lower', cmap='hot')
+# street_gdf.boundary.plot(ax=plt.gca(), edgecolor='blue')
+# plt.colorbar(label='Density')
+# plt.show()
+
+# def plot_kde_density_map(gdf,street_gdf, bandwidth=50, grid_size=100):
+def plot_kde_density_map(people_gdf,street_gdf, bandwidth=50, grid_size=100):
+    x_mesh, y_mesh, z = kde_density_map(people_gdf,street_gdf, bandwidth=20, grid_size=100)
+    # Plot KDE density map
+    plt.contourf(x_mesh, y_mesh, z, cmap='Reds', alpha=0.5)
+    plt.colorbar(label='Density')
+
+    # Overlay the shapefile
+    street_gdf.boundary.plot(ax=plt.gca(), color='gray', linewidth=0.8)
+
+    # Additional customization (optional)
+    plt.title("KDE Density Map with Shapefile Overlay")
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+
+    # Display the plot
+    plt.show()
+
+def create_arrows(gdf, arrow_length=0.05):
+    """
+    Creates small arrow geometries representing the direction of motion as caps on points.
+    Returns a GeoDataFrame with the arrow geometries.
+    """
+    arrow_geometries = []
+    for idx, row in gdf.iterrows():
+        if not np.isnan(row['direction']):
+            # Calculate the arrow's end point based on direction and very short length
+            dx = arrow_length * np.cos(np.radians(row['direction']))
+            dy = arrow_length * np.sin(np.radians(row['direction']))
+            start_point = row['geometry']
+            end_point = Point(start_point.x + dx, start_point.y + dy)
+            arrow_geometries.append(LineString([start_point, end_point]))
+        else:
+            arrow_geometries.append(None)
+   
+    # Create a new GeoDataFrame for arrows
+    arrow_gdf = gpd.GeoDataFrame(gdf, geometry=arrow_geometries)
+    return arrow_gdf
+
+
+
+def plot_arrows_on_map(gdf, arrow_gdf, street_shapefile_gdf, cmap='viridis'):
+    """
+    Plots the arrows on the map with color based on speed.
+    """
+    # Normalize the speed for color mapping
+    norm = mcolors.Normalize(vmin=gdf['average_speed_30s'].min(), vmax=gdf['average_speed_30s'].max())
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+
+    # Plot the base map
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+    street_shapefile_gdf.boundary.plot(ax=ax, color='blue', linewidth=1.5)
+   
+    # Plot arrows
+    for idx, row in arrow_gdf.iterrows():
+        if row['geometry'] is not None:
+            color = sm.to_rgba(row['average_speed_30s'])
+            ax.plot(*row['geometry'].xy, color=color, linewidth=2, alpha=0.8)
+   
+    # Add color bar
+    cbar = plt.colorbar(sm, ax=ax)
+    cbar.set_label('Instantaneous Speed (km/h)')
+   
+    plt.title('Direction of Motion with Speed Indication')
+    plt.show()
+
+
+
+def count_people_in_area(gdf, start_time, end_time, street_gdf=None):
+    """
+    Counts the number of unique people within the specified time period.
+    Optionally, filters the people within the specified street area.
+
+    Args:
+        gdf (GeoDataFrame): GeoDataFrame containing the people data with 'timestamp' and 'person_id' columns.
+        start_time (str or datetime): Start of the time period (e.g., '2024-08-22 10:00:00').
+        end_time (str or datetime): End of the time period (e.g., '2024-08-22 11:00:00').
+        street_gdf (GeoDataFrame, optional): GeoDataFrame containing the street geometry. If provided, will filter
+                                             the data to only include points within this geometry.
+
+    Returns:
+        int: The number of unique people in the area during the specified time period.
+    """
+    # Ensure that the timestamp column is in datetime format
+    gdf['timestamp'] = pd.to_datetime(gdf['timestamp'])
+   
+    # Filter the GeoDataFrame based on the time period
+    time_filtered_gdf = gdf[(gdf['timestamp'] >= start_time) & (gdf['timestamp'] <= end_time)]
+   
+    if street_gdf is not None:
+        # Create a unified street polygon from the street GeoDataFrame
+        street_polygon = street_gdf.union_all()
+       
+        # Spatially filter the GeoDataFrame based on the street area
+        time_filtered_gdf = time_filtered_gdf[time_filtered_gdf.geometry.within(street_polygon)]
+   
+    # Count the number of unique person IDs
+    unique_people_count = time_filtered_gdf['person_id'].nunique()
+   
+    return unique_people_count
+
+
+def update_people_count(gdf, map_obj):
+    count = len(gdf)
+    folium.map.Marker(
+        [latitude, longitude],
+        icon=DivIcon(icon_size=(150,36), icon_anchor=(0,0),
+                     html=f'<div style="font-size: 24pt">People Count: {count}</div>'),
+    ).add_to(map_obj)
+
+def get_start_end_times(gdf):
+    """
+    Returns the earliest (start) and latest (end) timestamps in the GeoDataFrame.
+
+    Args:
+        gdf (GeoDataFrame): GeoDataFrame containing a 'timestamp' column.
+
+    Returns:
+        tuple: A tuple containing the earliest and latest timestamps as (start_time, end_time).
+    """
+    # Ensure that the timestamp column is in datetime format
+    gdf['timestamp'] = pd.to_datetime(gdf['timestamp'])
+   
+    # Get the minimum (earliest) and maximum (latest) timestamps
+    start_time = gdf['timestamp'].min()
+    end_time = gdf['timestamp'].max()
+   
+    return start_time, end_time
+
+
+def load_street_shapefile(street_shapefile_path, epsg=32643):
+    """Load the street shapefile and calculate the centroid."""
+    street_gdf = gpd.read_file(street_shapefile_path)
+    # Convert the CRS to UTM zone 43N (EPSG:32643) for more accurate distance measurements
+    street_gdf = street_gdf.to_crs(epsg)
+    #centroid = street_gdf.geometry.centroid
+    #return centroid.y.iloc[0], centroid.x.iloc[0]  # Latitude, Longitude
+    return street_gdf
+
+
+
+
+
+
+
+
+
+# very big code ends here
+
+
+
 @app.route("/clogging")
 def clogging():
     start_time = '2024-08-23 16:30:00'
     end_time = '2024-08-23 16:31:00'
+
+    # start_time = '2024-08-23 16:30:00'
+    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
@@ -337,7 +880,7 @@ def clogging():
     
 
     # Plotting
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(20, 20))
 
     # Plot street shapefile
     street.to_crs(epsg=3857).plot(ax=ax, color='gray', linewidth=0.1, label='Street')
@@ -363,7 +906,7 @@ def clogging():
 
 
     img = io.BytesIO()
-    plt.savefig(img, format='png')
+    plt.savefig(img, format='png',bbox_inches='tight', transparent=True)
     img.seek(0)
     plt.close()  # Close the figure to free memory
 
@@ -380,48 +923,107 @@ def bottleneck():
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
     street_shapefile = os.path.join(os.getcwd(), "road.shp")
     entry_exit_shapefile = os.path.join(os.getcwd(), "Entry_Exit_Lines.shp")
-    print(street_shapefile)
+    # print(street_shapefile)
     street, entry_exit = load_shapefiles(street_shapefile, entry_exit_shapefile)  # Load shapefiles
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
     clogging_results = detect_clogging(entry_exit, people_gdf, 1, 5)
     hotspot_results, coldspot_results, clustering_bottlenecks = detect_clustering(people_gdf, 1, 50) 
     
     # Convert the GeoDataFrame to GeoJSON format
     # clogging_geojson = clogging_results.to_json()
-    # return jsonify({"clogging_results": json.loads(clogging_geojson)})
+    # return jsonify({"clogging_results": json.loads(clustering_bottlenecks)})
+    # return jsonify({"message": clustering_bottlenecks})
     
 
-    # Plotting
-    fig, ax = plt.subplots(figsize=(10, 10))
+    # Extracting x and y coordinates from the Point objects for hotspot results
+    hotspot_x_coords = [point.x for point in hotspot_results]
+    hotspot_y_coords = [point.y for point in hotspot_results]
 
-    # Plot street shapefile
-    street.to_crs(epsg=3857).plot(ax=ax, color='gray', linewidth=0.1, label='Street')
+    # Extracting x and y coordinates from the Point objects for coldspot results
+    coldspot_x_coords = [point.x for point in coldspot_results]
+    coldspot_y_coords = [point.y for point in coldspot_results]
 
-    # Plot people locations
-    people_gdf.to_crs(epsg=3857).plot(ax=ax, color='blue', markersize=5, label='People Locations')
+    # Creating the scatter plot
+    plt.figure(figsize=(10, 8))
 
-    # Plot entry/exit points
-    entry_exit.to_crs(epsg=3857).plot(ax=ax, color='green', markersize=20, label='Entry/Exit Points', edgecolor='black')
+    # Plotting hotspot results
+    plt.scatter(hotspot_x_coords, hotspot_y_coords, color='red', marker='o', s=10, label='Hotspots')
 
-    # Plot detected clogging points
-    clogging_results.to_crs(epsg=3857).plot(ax=ax, color='red', markersize=30, label='Clogging Detected Points', edgecolor='black')
+    # Plotting coldspot results
+    plt.scatter(coldspot_x_coords, coldspot_y_coords, color='blue', marker='o', s=10, label='Coldspots')
 
-    # Add basemap
-    #ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
-
-    # Add basemap (CartoDB Positron view)
-    ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
-
-    ax.legend()
-    ax.set_title('Clogging Detection at Entry/Exit Points with Basemap')
+    plt.title("Hotspot and Coldspot Results")
+    plt.xlabel("X Coordinates")
+    plt.ylabel("Y Coordinates")
+    plt.legend()
+    plt.grid(True)
     # plt.show()
 
 
     img = io.BytesIO()
+    plt.savefig(img, format='png',bbox_inches='tight', transparent=True)
+    img.seek(0)
+    plt.close()  # Close the figure to free memory
+
+    return send_file(img, mimetype='image/png')
+
+
+
+@app.route("/otherplot")
+def otherplot():
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:31:00'
+    people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
+    # street_shapefile = "/road.shp"
+    # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
+    street_shapefile = os.path.join(os.getcwd(), "road.shp")
+    entry_exit_shapefile = os.path.join(os.getcwd(), "Entry_Exit_Lines.shp")
+    # print(street_shapefile)
+    street, entry_exit = load_shapefiles(street_shapefile, entry_exit_shapefile)  # Load shapefiles
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+    clogging_results = detect_clogging(entry_exit, people_gdf, 1, 5)
+    hotspot_results, coldspot_results, clustering_bottlenecks = detect_clustering(people_gdf, 1, 50) 
+
+    # street_shapefile_path = r"C:\Users\Admin\Desktop\codes\rch\road.shp"
+    street_shapefile_path = os.path.join(os.getcwd(), "road.shp")
+
+    street_gdf=load_street_shapefile(street_shapefile_path, epsg=32643)
+    print(people_gdf)
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+
+
+    people_count=count_people_in_area(people_gdf, start_time, end_time, street_gdf=None)
+    print('People count ', people_count)
+   
+    plt.figure(figsize=(10, 8))  # Separate figure for grid density visualization
+    plot_density_grid(people_gdf, street_gdf, cell_size=10)
+
+    plt.figure(figsize=(10, 8))  # Separate figure for KDE density visualization
+    plot_kde_density_map(people_gdf,street_gdf, bandwidth=10, grid_size=10)
+
+   
+    detected, running_geometries, event_centroid=detect_running_away_anywhere(people_gdf, speed_threshold=5.0, distance_threshold=10.0, cluster_eps=5.0, min_samples=3)
+    if detected:
+        print("Running away event detected at centroid:", event_centroid)
+        #print("People involved:", running_geometries)
+        #visualize_running_away_event(street_gdf, people_gdf, running_geometries, event_centroid)
+        visualize_running_away_event_with_directions(street_gdf, people_gdf, running_geometries, event_centroid,show_arrow=True)
+    
+    # Convert the GeoDataFrame to GeoJSON format
+    # clogging_geojson = clogging_results.to_json()
+    # return jsonify({"clogging_results": json.loads(clustering_bottlenecks)})
+    # return jsonify({"message": clustering_bottlenecks})
+
+
+    img = io.BytesIO()
+    # plt.savefig(img, format='png',bbox_inches='tight', transparent=True)
     plt.savefig(img, format='png')
     img.seek(0)
     plt.close()  # Close the figure to free memory
 
     return send_file(img, mimetype='image/png')
+
+
 
 # -----
 
