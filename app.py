@@ -157,6 +157,7 @@ from IPython.display import display, clear_output
 import time
 import folium
 from folium.plugins import HeatMap
+from folium.features import DivIcon
 import contextily as ctx
 
 
@@ -222,6 +223,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import box
 from sklearn.neighbors import KernelDensity
 from shapely.geometry import Polygon
+from datetime import datetime, timedelta
 
 def fetch_people_locations(conn, start_time, end_time, epsg=32643):
     """
@@ -429,7 +431,7 @@ def calculate_average_speeds(gdf,speed_unit="km/h"):
 
 
 
-def detect_running_away_anywhere(people_gdf, speed_threshold, distance_threshold, cluster_eps, min_samples):
+def detect_running_away_anywhere(gdf, speed_threshold, distance_threshold, cluster_eps, min_samples):
     """
     Detects if people are suddenly running away from any point on the street in all directions.
    
@@ -449,7 +451,7 @@ def detect_running_away_anywhere(people_gdf, speed_threshold, distance_threshold
     event_centroid = None
    
     # Filter people who are moving faster than the speed threshold
-    running_people = people_gdf[people_gdf['instantaneous_speed'] > speed_threshold]
+    running_people = gdf[gdf['instantaneous_speed'] > speed_threshold]
     if running_people.empty:
         return False, results, event_centroid
 
@@ -633,10 +635,10 @@ def calculate_density(gdf, grid):
 
 
 # def plot_density_grid(gdf, street_shapefile, cell_size=10,):
-def plot_density_grid(people_gdf, street_shapefile, cell_size=10,):
+def plot_density_grid(gdf, street_shapefile, cell_size=10,):
 
     grid = generate_grid_for_street(street_shapefile, grid_size=3)
-    density_grid = calculate_density(people_gdf, grid)  # Calculate density
+    density_grid = calculate_density(gdf, grid)  # Calculate density
    
     # Plot the density map
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
@@ -647,7 +649,7 @@ def plot_density_grid(people_gdf, street_shapefile, cell_size=10,):
     grid.plot(column='density', ax=ax, legend=True,
               cmap='OrRd', edgecolor='k', linewidth=0.2)
     ax.set_title('Crowd Density Map')
-    plt.show()
+    # plt.show()
 
 
 
@@ -705,8 +707,8 @@ def kde_density_map(gdf, street_gdf, bandwidth=50, grid_size=100):
 # plt.show()
 
 # def plot_kde_density_map(gdf,street_gdf, bandwidth=50, grid_size=100):
-def plot_kde_density_map(people_gdf,street_gdf, bandwidth=50, grid_size=100):
-    x_mesh, y_mesh, z = kde_density_map(people_gdf,street_gdf, bandwidth=20, grid_size=100)
+def plot_kde_density_map(gdf,street_gdf, bandwidth=50, grid_size=100):
+    x_mesh, y_mesh, z = kde_density_map(gdf,street_gdf, bandwidth=20, grid_size=100)
     # Plot KDE density map
     plt.contourf(x_mesh, y_mesh, z, cmap='Reds', alpha=0.5)
     plt.colorbar(label='Density')
@@ -720,7 +722,7 @@ def plot_kde_density_map(people_gdf,street_gdf, bandwidth=50, grid_size=100):
     plt.ylabel("Latitude")
 
     # Display the plot
-    plt.show()
+    # plt.show()
 
 def create_arrows(gdf, arrow_length=0.05):
     """
@@ -810,7 +812,8 @@ def count_people_in_area(gdf, start_time, end_time, street_gdf=None):
 def update_people_count(gdf, map_obj):
     count = len(gdf)
     folium.map.Marker(
-        [latitude, longitude],
+        # [latitude, longitude],
+        [11.322854, 75.936500],
         icon=DivIcon(icon_size=(150,36), icon_anchor=(0,0),
                      html=f'<div style="font-size: 24pt">People Count: {count}</div>'),
     ).add_to(map_obj)
@@ -861,8 +864,12 @@ def clogging():
     start_time = '2024-08-23 16:30:00'
     end_time = '2024-08-23 16:31:00'
 
-    # start_time = '2024-08-23 16:30:00'
+    # # Set the end time to now
     # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # # Set the start time to 5 minutes before now
+    # start_time = (datetime.now() - timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+
 
 
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
@@ -969,10 +976,10 @@ def bottleneck():
 
 
 
-@app.route("/otherplot")
-def otherplot():
+# @app.route("/otherplot")
+# def otherplot():
     start_time = '2024-08-23 16:30:00'
-    end_time = '2024-08-23 16:31:00'
+    end_time = '2024-08-23 16:36:00'
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
@@ -1023,6 +1030,123 @@ def otherplot():
 
     return send_file(img, mimetype='image/png')
 
+
+@app.route("/grid_density")
+def plot_grid_density():
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:36:00'
+    people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
+    # street_shapefile = "/road.shp"
+    # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
+    street_shapefile = os.path.join(os.getcwd(), "road.shp")
+    entry_exit_shapefile = os.path.join(os.getcwd(), "Entry_Exit_Lines.shp")
+    # print(street_shapefile)
+    street, entry_exit = load_shapefiles(street_shapefile, entry_exit_shapefile)  # Load shapefiles
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+    clogging_results = detect_clogging(entry_exit, people_gdf, 1, 5)
+    hotspot_results, coldspot_results, clustering_bottlenecks = detect_clustering(people_gdf, 1, 50) 
+
+    # street_shapefile_path = r"C:\Users\Admin\Desktop\codes\rch\road.shp"
+    street_shapefile_path = os.path.join(os.getcwd(), "road.shp")
+
+    street_gdf=load_street_shapefile(street_shapefile_path, epsg=32643)
+    print(people_gdf)
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+
+
+    people_count=count_people_in_area(people_gdf, start_time, end_time, street_gdf=None)
+    print('People count ', people_count)
+
+    plt.figure(figsize=(10, 8))
+    plot_density_grid(people_gdf, street_gdf, cell_size=10)
+    
+    img = io.BytesIO()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    plt.close()
+
+    return send_file(img, mimetype='image/png')
+
+
+@app.route("/kde_density")
+def plot_kde_density():
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:36:00'
+    people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
+    # street_shapefile = "/road.shp"
+    # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
+    street_shapefile = os.path.join(os.getcwd(), "road.shp")
+    entry_exit_shapefile = os.path.join(os.getcwd(), "Entry_Exit_Lines.shp")
+    # print(street_shapefile)
+    street, entry_exit = load_shapefiles(street_shapefile, entry_exit_shapefile)  # Load shapefiles
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+    clogging_results = detect_clogging(entry_exit, people_gdf, 1, 5)
+    hotspot_results, coldspot_results, clustering_bottlenecks = detect_clustering(people_gdf, 1, 50) 
+
+    # street_shapefile_path = r"C:\Users\Admin\Desktop\codes\rch\road.shp"
+    street_shapefile_path = os.path.join(os.getcwd(), "road.shp")
+
+    street_gdf=load_street_shapefile(street_shapefile_path, epsg=32643)
+    print(people_gdf)
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+
+
+    people_count=count_people_in_area(people_gdf, start_time, end_time, street_gdf=None)
+    print('People count ', people_count)
+
+    plt.figure(figsize=(10, 8))
+    plot_kde_density_map(people_gdf, street_gdf, bandwidth=10, grid_size=10)
+    
+    img = io.BytesIO()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    plt.close()
+
+    return send_file(img, mimetype='image/png')
+
+
+@app.route("/running_event")
+def plot_running_event():
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:36:00'
+    people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
+    # street_shapefile = "/road.shp"
+    # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
+    street_shapefile = os.path.join(os.getcwd(), "road.shp")
+    entry_exit_shapefile = os.path.join(os.getcwd(), "Entry_Exit_Lines.shp")
+    # print(street_shapefile)
+    street, entry_exit = load_shapefiles(street_shapefile, entry_exit_shapefile)  # Load shapefiles
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+    clogging_results = detect_clogging(entry_exit, people_gdf, 1, 5)
+    hotspot_results, coldspot_results, clustering_bottlenecks = detect_clustering(people_gdf, 1, 50) 
+
+    # street_shapefile_path = r"C:\Users\Admin\Desktop\codes\rch\road.shp"
+    street_shapefile_path = os.path.join(os.getcwd(), "road.shp")
+
+    street_gdf=load_street_shapefile(street_shapefile_path, epsg=32643)
+    print(people_gdf)
+    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
+
+
+    people_count=count_people_in_area(people_gdf, start_time, end_time, street_gdf=None)
+    print('People count ', people_count)
+
+    detected, running_geometries, event_centroid = detect_running_away_anywhere(
+        people_gdf, speed_threshold=5.0, distance_threshold=10.0, cluster_eps=5.0, min_samples=3)
+
+    if detected:
+        plt.figure(figsize=(10, 8))
+        visualize_running_away_event_with_directions(
+            street_gdf, people_gdf, running_geometries, event_centroid, show_arrow=True)
+        
+        img = io.BytesIO()
+        plt.savefig(img, format='png')
+        img.seek(0)
+        plt.close()
+
+        return send_file(img, mimetype='image/png')
+    else:
+        return jsonify({"message": "No running event detected"}), 204
 
 
 # -----
