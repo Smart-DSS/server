@@ -490,7 +490,7 @@ def detect_running_away_anywhere(gdf, speed_threshold, distance_threshold, clust
                 directions.append(movement_direction)
        
         # Check if there is sufficient angular dispersion
-        if len(directions) >= 3:  # Need at least three people moving in different directions to consider dispersion
+        if len(directions) >= min_samples:  # Need at least three people moving in different directions to consider dispersion
             min_direction, max_direction = min(directions), max(directions)
             if max_direction - min_direction > np.pi / 2:  # Adjust this threshold as needed
                 divergence_detected = True
@@ -857,14 +857,13 @@ def load_street_shapefile(street_shapefile_path, epsg=32643):
 
 @app.route("/clogging")
 def clogging():
-    # start_time = '2024-08-23 16:30:00'
-    # end_time = '2024-08-23 16:31:00'
-
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:31:00'
     # Set the end time to now
-    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Set the start time to 5 minutes before now
-    start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # # Set the start time to 5 minutes before now
+    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
 
 
 
@@ -919,13 +918,13 @@ def clogging():
 
 @app.route("/bottleneck")
 def bottleneck():
-    # start_time = '2024-08-23 16:30:00'
-    # end_time = '2024-08-23 16:31:00'
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:31:00'
     # Set the end time to now
-    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Set the start time to 5 minutes before now
-    start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # # Set the start time to 5 minutes before now
+    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
 
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
@@ -1035,13 +1034,13 @@ def bottleneck():
 
 @app.route("/grid_density")
 def plot_grid_density():
-    # start_time = '2024-08-23 16:30:00'
-    # end_time = '2024-08-23 16:36:00'
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:36:00'
     # Set the end time to now
-    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Set the start time to 5 minutes before now
-    start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # # Set the start time to 5 minutes before now
+    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
@@ -1077,13 +1076,13 @@ def plot_grid_density():
 
 @app.route("/kde_density")
 def plot_kde_density():
-    # start_time = '2024-08-23 16:30:00'
-    # end_time = '2024-08-23 16:36:00'
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:36:00'
     # Set the end time to now
-    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Set the start time to 5 minutes before now
-    start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # # Set the start time to 5 minutes before now
+    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
@@ -1119,13 +1118,13 @@ def plot_kde_density():
 
 @app.route("/running_event")
 def plot_running_event():
-    # start_time = '2024-08-23 16:30:00'
-    # end_time = '2024-08-23 16:36:00'
+    start_time = '2024-08-23 16:30:00'
+    end_time = '2024-08-23 16:36:00'
     # Set the end time to now
-    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # Set the start time to 5 minutes before now
-    start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # # Set the start time to 5 minutes before now
+    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
@@ -1149,7 +1148,7 @@ def plot_running_event():
     print('People count ', people_count)
 
     detected, running_geometries, event_centroid = detect_running_away_anywhere(
-        people_gdf, speed_threshold=5.0, distance_threshold=10.0, cluster_eps=5.0, min_samples=3)
+        people_gdf, speed_threshold=5.0, distance_threshold=10.0, cluster_eps=5.0, min_samples=5)
 
     if detected:
         plt.figure(figsize=(10, 8))
