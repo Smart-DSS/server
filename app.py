@@ -857,13 +857,13 @@ def load_street_shapefile(street_shapefile_path, epsg=32643):
 
 @app.route("/clogging")
 def clogging():
-    start_time = '2024-08-23 16:30:00'
-    end_time = '2024-08-23 16:31:00'
+    # start_time = '2024-08-23 16:30:00'
+    # end_time = '2024-08-23 16:31:00'
     # Set the end time to now
-    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # # Set the start time to 5 minutes before now
-    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # Set the start time to 5 minutes before now
+    start_time = (datetime.now() - timedelta(seconds=40)).strftime('%Y-%m-%d %H:%M:%S')
 
 
 
@@ -918,13 +918,13 @@ def clogging():
 
 @app.route("/bottleneck")
 def bottleneck():
-    start_time = '2024-08-23 16:30:00'
-    end_time = '2024-08-23 16:31:00'
+    # start_time = '2024-08-23 16:30:00'
+    # end_time = '2024-08-23 16:31:00'
     # Set the end time to now
-    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # # Set the start time to 5 minutes before now
-    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # Set the start time to 5 minutes before now
+    start_time = (datetime.now() - timedelta(seconds=40)).strftime('%Y-%m-%d %H:%M:%S')
 
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
@@ -977,70 +977,15 @@ def bottleneck():
 
 
 
-# @app.route("/otherplot")
-# def otherplot():
-    start_time = '2024-08-23 16:30:00'
-    end_time = '2024-08-23 16:36:00'
-    people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
-    # street_shapefile = "/road.shp"
-    # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
-    street_shapefile = os.path.join(os.getcwd(), "road.shp")
-    entry_exit_shapefile = os.path.join(os.getcwd(), "Entry_Exit_Lines.shp")
-    # print(street_shapefile)
-    street, entry_exit = load_shapefiles(street_shapefile, entry_exit_shapefile)  # Load shapefiles
-    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
-    clogging_results = detect_clogging(entry_exit, people_gdf, 1, 5)
-    hotspot_results, coldspot_results, clustering_bottlenecks = detect_clustering(people_gdf, 1, 50) 
-
-    # street_shapefile_path = r"C:\Users\Admin\Desktop\codes\rch\road.shp"
-    street_shapefile_path = os.path.join(os.getcwd(), "road.shp")
-
-    street_gdf=load_street_shapefile(street_shapefile_path, epsg=32643)
-    print(people_gdf)
-    people_gdf=calculate_average_speeds(people_gdf,speed_unit='km/h')
-
-
-    people_count=count_people_in_area(people_gdf, start_time, end_time, street_gdf=None)
-    print('People count ', people_count)
-   
-    plt.figure(figsize=(10, 8))  # Separate figure for grid density visualization
-    plot_density_grid(people_gdf, street_gdf, cell_size=10)
-
-    plt.figure(figsize=(10, 8))  # Separate figure for KDE density visualization
-    plot_kde_density_map(people_gdf,street_gdf, bandwidth=10, grid_size=10)
-
-   
-    detected, running_geometries, event_centroid=detect_running_away_anywhere(people_gdf, speed_threshold=5.0, distance_threshold=10.0, cluster_eps=5.0, min_samples=3)
-    if detected:
-        print("Running away event detected at centroid:", event_centroid)
-        #print("People involved:", running_geometries)
-        #visualize_running_away_event(street_gdf, people_gdf, running_geometries, event_centroid)
-        visualize_running_away_event_with_directions(street_gdf, people_gdf, running_geometries, event_centroid,show_arrow=True)
-    
-    # Convert the GeoDataFrame to GeoJSON format
-    # clogging_geojson = clogging_results.to_json()
-    # return jsonify({"clogging_results": json.loads(clustering_bottlenecks)})
-    # return jsonify({"message": clustering_bottlenecks})
-
-
-    img = io.BytesIO()
-    # plt.savefig(img, format='png',bbox_inches='tight', transparent=True)
-    plt.savefig(img, format='png')
-    img.seek(0)
-    plt.close()  # Close the figure to free memory
-
-    return send_file(img, mimetype='image/png')
-
-
 @app.route("/grid_density")
 def plot_grid_density():
-    start_time = '2024-08-23 16:30:00'
-    end_time = '2024-08-23 16:36:00'
+    # start_time = '2024-08-23 16:30:00'
+    # end_time = '2024-08-23 16:36:00'
     # Set the end time to now
-    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # # Set the start time to 5 minutes before now
-    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # Set the start time to 5 minutes before now
+    start_time = (datetime.now() - timedelta(seconds=40)).strftime('%Y-%m-%d %H:%M:%S')
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
@@ -1076,13 +1021,13 @@ def plot_grid_density():
 
 @app.route("/kde_density")
 def plot_kde_density():
-    start_time = '2024-08-23 16:30:00'
-    end_time = '2024-08-23 16:36:00'
+    # start_time = '2024-08-23 16:30:00'
+    # end_time = '2024-08-23 16:36:00'
     # Set the end time to now
-    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # # Set the start time to 5 minutes before now
-    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # Set the start time to 5 minutes before now
+    start_time = (datetime.now() - timedelta(seconds=40)).strftime('%Y-%m-%d %H:%M:%S')
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
@@ -1118,13 +1063,13 @@ def plot_kde_density():
 
 @app.route("/running_event")
 def plot_running_event():
-    start_time = '2024-08-23 16:30:00'
-    end_time = '2024-08-23 16:36:00'
+    # start_time = '2024-08-23 16:30:00'
+    # end_time = '2024-08-23 16:36:00'
     # Set the end time to now
-    # end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # # Set the start time to 5 minutes before now
-    # start_time = (datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')
+    # Set the start time to 5 minutes before now
+    start_time = (datetime.now() - timedelta(seconds=40)).strftime('%Y-%m-%d %H:%M:%S')
     people_gdf = fetch_people_locations(conn, start_time, end_time,epsg=32643 )
     # street_shapefile = "/road.shp"
     # entry_exit_shapefile = "/Entry_Exit_Lines.shp"
